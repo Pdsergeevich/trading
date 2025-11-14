@@ -30,6 +30,7 @@ class Backtester:
         self.strategy = strategy
         self.data = data.copy()
         self.engine = TradingEngine(strategy)
+        self.interrupted = False
 
         # Убедимся что индекс - datetime
         if not isinstance(self.data.index, pd.DatetimeIndex):
@@ -64,6 +65,10 @@ class Backtester:
 
         # Прогоняем каждую свечу через движок
         for i in range(len(test_data)):
+
+            if self.interrupted:
+                print("\n⚠️ Бэктестинг прерван")
+                break
             # Берём данные до текущей свечи (включительно)
             current_data = test_data.iloc[:i+1]
             current_time = test_data.index[i]

@@ -13,6 +13,12 @@ from enum import Enum
 from config import config
 from market_context import MarketContext, MarketContextAnalyzer
 from indicators import TechnicalIndicators
+from logger import setup_logger
+
+class TradingEngine:
+    def __init__(self, strategy):
+        # ...
+        self.logger = setup_logger()
 
 class OrderType(Enum):
     """Тип ордера"""
@@ -96,6 +102,8 @@ class TradingEngine:
         self.current_position: Optional[Trade] = None
         self.trades_history: List[Trade] = []
         self.current_context = MarketContext.UNKNOWN
+
+        self.logger = setup_logger()
 
         # Состояние кулдауна после stop-loss
         self.in_cooldown = False
@@ -227,6 +235,8 @@ class TradingEngine:
             take_profit=signal.take_profit,
             size=config.POSITION_SIZE
         )
+
+        self.logger.info(f"Открыта {side.value} позиция: {signal.price}")
 
         print(f"✅ Открыта {side.value} позиция: цена={signal.price:.2f}, "
               f"SL={signal.stop_loss:.2f}, TP={signal.take_profit:.2f}, причина={signal.reason}")
