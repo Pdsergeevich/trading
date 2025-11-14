@@ -54,7 +54,7 @@ class FuturesConfig:
 
 @dataclass
 class StocksConfig:
-    """Параметры для торговли фьючерсами"""
+    """Параметры для торговли"""
     
     # Временные ограничения
     TRADING_START_TIME = time(10, 0)

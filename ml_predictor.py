@@ -238,11 +238,6 @@ class MLPredictor:
         )
 
         self.model.fit(X_train_scaled, y_train)
-        if train_accuracy - test_accuracy > 0.15:  # Разница >15%
-            print("⚠️ ПЕРЕОБУЧЕНИЕ! Модель слишком подогнана под обучающие данные")
-            print(f"   Train: {train_accuracy*100:.1f}% vs Test: {test_accuracy*100:.1f}%")
-            print("   Рекомендация: уменьшите max_depth или увеличьте min_samples_split")
-        self.is_trained = True
 
         # Оценка на обучающей выборке
         y_train_pred = self.model.predict(X_train_scaled)
@@ -252,6 +247,14 @@ class MLPredictor:
         y_test_pred = self.model.predict(X_test_scaled)
         test_accuracy = accuracy_score(y_test, y_test_pred)
         self.accuracy = test_accuracy
+
+        # Проверка на переобучение
+        if train_accuracy - test_accuracy > 0.15:  # Разница >15%
+            print("⚠️ ПЕРЕОБУЧЕНИЕ! Модель слишком подогнана под обучающие данные")
+            print(f"   Train: {train_accuracy*100:.1f}% vs Test: {test_accuracy*100:.1f}%")
+            print("   Рекомендация: уменьшите max_depth или увеличьте min_samples_split")
+
+        self.is_trained = True
 
         print("\n" + "="*70)
         print("✅ РЕЗУЛЬТАТЫ ОБУЧЕНИЯ")
