@@ -118,7 +118,7 @@ class TradingEngine:
         """
         ГЛАВНЫЙ МЕТОД: Обработка поступления новой свечи
         Вся логика принятия решений происходит здесь
-
+        
         Args:
             df: DataFrame с историческими данными
             current_time: Время текущей свечи
@@ -126,13 +126,15 @@ class TradingEngine:
         self.historical_data = df
         current_candle = df.iloc[-1]
         current_price = current_candle['close']
-
-        # 1. ПРОВЕРКА ВРЕМЕНИ - ОБЯЗАТЕЛЬНОЕ ЗАКРЫТИЕ ПОЗИЦИЙ НА НОЧЬ!
+        
+        # 1. 🆕 ПРОВЕРКА ВРЕМЕНИ С УЧЁТОМ НОЧНОГО ПЕРЕНОСА
         if not self._is_trading_time(current_time):
-            if self.current_position is not None:
-                self._close_position(current_price, current_time, "force_close_night")
-                print(f"⚠️ ПРИНУДИТЕЛЬНОЕ ЗАКРЫТИЕ позиции на ночь! Время: {current_time}")
-            return
+            # Закрываем позиции только если НЕ разрешен ночной перенос
+            if not config.ALLOW_OVERNIGHT_POSITIONS:
+                if self.current_position is not None:
+                    self._close_position(current_price, current_time, "force_close_night")
+                    self.logger.info(f"⚠️ ПРИНУДИТЕЛЬНОЕ ЗАКРЫТИЕ позиции на ночь! Время: {current_time}")
+            return  # Не открываем новые позиции вне торгового времени
 
         # 2. Рассчитываем индикаторы
         if len(df) >= config.ATR_PERIOD:
@@ -162,6 +164,13 @@ class TradingEngine:
             if self.current_position is not None:  # Может быть закрыта выше
                 if self.strategy.should_close_position(df, current_price, self.current_position):
                     self._close_position(current_price, current_time, "strategy_signal")
+            
+            # 🆕 НОВАЯ ПРОВЕРКА: Закрываем слишком старые позиции
+            if self.current_position is not None and config.ALLOW_OVERNIGHT_POSITIONS:
+                days_held = (current_time - self.current_position.entry_time).days
+                if days_held >= config.MAX_OVERNIGHT_DAYS:
+                    self.logger.info(f"⏰ Закрытие позиции: удержание {days_held} дней (макс {config.MAX_OVERNIGHT_DAYS})")
+                    self._close_position(current_price, current_time, "max_days_reached")
 
         # 6. Ищем новые входы (если нет открытой позиции)
         if self.current_position is None and not self.in_cooldown:
@@ -197,31 +206,38 @@ class TradingEngine:
                 new_context == MarketContext.BULLISH):
                 self._close_position(current_price, current_time, "context_change")
 
-        # # Если есть открытая позиция, проверяем соответствие контексту
-        # if self.current_position is not None:
-        #     current_price = self.historical_data['close'].iloc[-1]
-        #     current_time = self.historical_data.index[-1]
-
-        #     # Лонг позиция в шорт контексте - закрываем
-        #     if (self.current_position.side == PositionSide.LONG and 
-        #         new_context == MarketContext.BEARISH):
-        #         self._close_position(current_price, current_time, "context_change")
-
-        #     # Шорт позиция в лонг контексте - закрываем
-        #     elif (self.current_position.side == PositionSide.SHORT and 
-        #           new_context == MarketContext.BULLISH):
-        #         self._close_position(current_price, current_time, "context_change")
 
     def _is_trading_time(self, current_time: datetime) -> bool:
-        """Проверяет, находимся ли мы во время торговли"""
+        """
+        Проверяет, находимся ли мы во время торговли
+        
+        Если ALLOW_OVERNIGHT_POSITIONS = True:
+            - Позиции НЕ закрываются принудительно
+            - Торгуем круглосуточно (или по расписанию данных)
+        
+        Если ALLOW_OVERNIGHT_POSITIONS = False:
+            - Позиции закрываются перед FORCE_CLOSE_TIME
+            - Новые позиции не открываются после TRADING_END_TIME
+        
+        Returns:
+            True - разрешена торговля
+            False - закрываем позиции и не открываем новые
+        """
         current_time_only = current_time.time()
-
+        
+        # 🆕 РЕЖИМ 1: Если разрешен перенос через ночь
+        if config.ALLOW_OVERNIGHT_POSITIONS:
+            # Всегда разрешаем торговлю (позиции живут днями)
+            return True
+        
+        # 🔴 РЕЖИМ 2: Внутридневная торговля (текущий режим)
         # Принудительное закрытие перед ночью
         if current_time_only >= config.FORCE_CLOSE_TIME:
             return False
-
+        
         # Обычное торговое время
         return config.TRADING_START_TIME <= current_time_only <= config.TRADING_END_TIME
+
 
     def _open_position(self, signal: Signal, current_time: datetime):
         """Открывает новую позицию"""

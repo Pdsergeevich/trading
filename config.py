@@ -9,11 +9,15 @@ from datetime import time
 @dataclass
 class FuturesConfig:
     """Параметры для торговли фьючерсами"""
-    
+
     # Временные ограничения
     TRADING_START_TIME = time(10, 0)
     TRADING_END_TIME = time(18, 30)
     FORCE_CLOSE_TIME = time(23, 45)
+
+    # 🆕 НОВЫЙ ПАРАМЕТР: Перенос позиций через ночь
+    ALLOW_OVERNIGHT_POSITIONS: bool = True  # Для фьючерсов можно
+    MAX_OVERNIGHT_DAYS: int = 10  # Макс держать позицию N дней
     
     # ИСПРАВЛЕНО: Параметры волатильности для ФЬЮЧЕРСОВ
     ATR_PERIOD = 14
@@ -60,6 +64,10 @@ class StocksConfig:
     TRADING_START_TIME = time(10, 0)
     TRADING_END_TIME = time(18, 30)
     FORCE_CLOSE_TIME = time(23, 45)
+
+    # 🆕 НОВЫЙ ПАРАМЕТР: Перенос позиций через ночь
+    ALLOW_OVERNIGHT_POSITIONS: bool = False  # Для акций НЕ рекомендуется
+    MAX_OVERNIGHT_DAYS: int = 3  # Макс держать позицию N дней
     
     # ИСПРАВЛЕНО: Параметры волатильности для ФЬЮЧЕРСОВ
     ATR_PERIOD = 14
@@ -98,4 +106,4 @@ class StocksConfig:
     INITIAL_CAPITAL = 100000
     COMMISSION = 0.0004
 
-config = FuturesConfig()  # или StocksConfig()
+config = StocksConfig()  # или StocksConfig()
